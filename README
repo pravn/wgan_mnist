@@ -1,0 +1,10 @@
+WGAN 
+====
+
+Code copied from various places 
+  - https://github.com/martinarjovsky/WassersteinGAN
+  - https://github.com/caogang/wgan-gp
+
+Dataset - MNIST. 
+
+This one uses gradient clipping for now. 
