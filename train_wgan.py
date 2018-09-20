@@ -13,6 +13,12 @@ from torchvision.utils import save_image
 from torch.optim.lr_scheduler import StepLR
 from torch.nn import functional as F
 
+import time
+import tflib as lib
+import tflib.save_images
+import tflib.plot
+#import tflib.inception_score
+
 torch.manual_seed(123)
 
 
@@ -52,7 +58,7 @@ def calc_gradient_penalty(netD, real_data, fake_data):
     alpha = alpha.expand(BATCH_SIZE, int(real_data.nelement()/BATCH_SIZE)).contiguous()
     alpha = alpha.view(BATCH_SIZE, 1, DIM, DIM)
     alpha = alpha.to(device)
-    
+
     fake_data = fake_data.view(BATCH_SIZE, 1, DIM, DIM)
     interpolates = alpha * real_data.detach() + ((1 - alpha) * fake_data.detach())
 
@@ -71,10 +77,13 @@ def calc_gradient_penalty(netD, real_data, fake_data):
 
 
 def run_trainer(train_loader, netD, netG, args):
-    criterion = nn.MSELoss()
+
+    mode = args.mode
 
     free_params(netD)
     free_params(netG)
+
+    
 
     optimizerD = optim.Adam(netD.parameters(), lr=1e-4, betas=(0.5,0.9))
     optimizerG = optim.Adam(netG.parameters(), lr=1e-4,betas=(0.5,0.9))
@@ -135,8 +144,9 @@ def run_trainer(train_loader, netD, netG, args):
 
 
                 # clamp parameters to a cube
-                for p in netD.parameters():
-                    p.data.clamp_(-0.01, 0.01)
+                if(mode=='wgan'):
+                    for p in netD.parameters():
+                        p.data.clamp_(-0.01, 0.01)
 
                 images = Variable(images)
                 images = images.cuda()
@@ -145,7 +155,7 @@ def run_trainer(train_loader, netD, netG, args):
                 #train disc with real
                 output = netD(images)
                 errD_real = output.mean()
-                errD_real.backward(one)
+                #errD_real.backward(one)
 
 
                 #train disc with fake
@@ -155,23 +165,22 @@ def run_trainer(train_loader, netD, netG, args):
                 output = netD(fake.detach()) 
 
                 errD_fake = output.mean()
-                errD_fake.backward(mone)
 
-                #gradient_penalty = calc_gradient_penalty(netD, images, fake)
-
-                #print('errD.size()', gradient_penalty.size())
-
-                #print('fake.size()', fake.size())
+                if(mode=='wgan'):
+                    errD_fake.backward(mone)
+                    errD_real.backward(one)
+                if(mode=='wgan-gp'):
+                    errD_real.backward(mone)
+                    errD_fake.backward(one)
+                    gradient_penalty = calc_gradient_penalty(netD, images, fake)
+                    gradient_penalty.backward()
 
                 errD = errD_fake - errD_real #+ gradient_penalty
 
-                #errD.backward(retain_graph=True)
+
                 optimizerD.step()
 
                 D_loss_epoch += errD.data.cpu().item()
-
-                #if j % 10 == 0:
-                 #   print('errD ', j, D_loss_epoch)
 
             #train G
             #might have to freeze disc params
@@ -186,21 +195,25 @@ def run_trainer(train_loader, netD, netG, args):
 
 
             errG = netD(fake)
-            
             errG = errG.mean()
-            
-            errG.backward(one)
+
+            if(mode=='wgan'):
+                errG.backward(one)
+            if(mode=='wgan-gp'):
+                errG.backward(mone)
+                
             optimizerG.step()
 
             G_loss_epoch += errG.mean().data.cpu().item()
 
             step += 1
 
-
-            if step % 1 == 0 and i == 1 :
-                #print('saving images')
+            if step % 1 == 0 and i == 5 :
+                print('saving images')
                 save_image(fake[0:6].data.cpu().detach(), './recon.png')
                 save_image(images[0:6].data.cpu().detach(), './orig.png')
+
+                
 
 
         #recon_loss_array.append(recon_loss_epoch)
@@ -214,6 +227,4 @@ def run_trainer(train_loader, netD, netG, args):
         if(epoch % 1 == 0):
             print("Epoch, G_loss, D_loss" 
                   ,epoch + 1, G_loss_epoch, D_loss_epoch)
-
-        
 

@@ -42,7 +42,6 @@ class Decoder(nn.Module):
                                     ) #14x14
             
         self.first = nn.Sequential(nn.ConvTranspose2d(10,1,4,2,1,bias=False),
-                                   nn.BatchNorm2d(1),
                                    nn.Sigmoid()
                                    )
 
