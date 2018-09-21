@@ -13,12 +13,6 @@ from torchvision.utils import save_image
 from torch.optim.lr_scheduler import StepLR
 from torch.nn import functional as F
 
-import time
-import tflib as lib
-import tflib.save_images
-import tflib.plot
-#import tflib.inception_score
-
 torch.manual_seed(123)
 
 

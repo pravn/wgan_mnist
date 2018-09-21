@@ -78,17 +78,15 @@ class Discriminator(nn.Module):
                                     nn.BatchNorm2d(self.n_z),
                                     nn.ReLU()
                                     )
-
-        self.fifth = nn.Conv2d(self.n_z,1,1,1,0)
-
-
+        
+        self.fc = nn.Linear(self.n_z, 1)
         
     def forward(self, x):
         x = self.first(x)
         x = self.second(x)
         x = self.third(x)
         x = self.fourth(x)
-        x = self.fifth(x)
+        x = self.fc(x.view(-1, self.n_z))
         return  x
 
 
